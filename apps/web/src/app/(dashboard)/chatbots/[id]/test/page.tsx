@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, RefreshCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,21 @@ import { useChat } from "@ai-sdk/react";
 
 export default function ChatbotTestPage() {
     const params = useParams();
+    const [inputValue, setInputValue] = useState("");
 
-    const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
+    const { messages, append, isLoading, setMessages } = useChat({
         api: '/api/chat',
         body: { chatbotId: params.id },
     });
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!inputValue.trim() || isLoading) return;
+
+        const userMessage = inputValue;
+        setInputValue("");
+        await append({ role: 'user', content: userMessage });
+    };
 
     // Auto-scroll
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -110,13 +120,13 @@ export default function ChatbotTestPage() {
                         <div className="flex gap-2">
                             <form onSubmit={handleSubmit} className="flex gap-2 w-full">
                                 <Input
-                                    value={input}
-                                    onChange={handleInputChange}
+                                    value={inputValue}
+                                    onChange={(e) => setInputValue(e.target.value)}
                                     placeholder="Type a message..."
                                     disabled={isLoading}
                                     className="flex-1"
                                 />
-                                <Button type="submit" disabled={!input.trim() || isLoading}>
+                                <Button type="submit" disabled={!inputValue.trim() || isLoading}>
                                     <Send className="w-4 h-4" />
                                 </Button>
                             </form>
@@ -152,7 +162,7 @@ export default function ChatbotTestPage() {
                         ].map((q, i) => (
                             <button
                                 key={i}
-                                onClick={() => setInput(q)}
+                                onClick={() => setInputValue(q)}
                                 className="w-full text-left text-sm p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                             >
                                 {q}
