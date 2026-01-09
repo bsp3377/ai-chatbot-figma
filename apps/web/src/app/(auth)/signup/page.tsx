@@ -51,24 +51,37 @@ export default function SignupPage() {
         setError(null);
 
         try {
-            // In production, call API to create user
-            console.log("Creating user:", data);
+            // Call server action to create user
+            const { register } = await import("@/actions/auth-actions");
+            const result = await register({
+                name: data.name,
+                email: data.email,
+                companyName: data.companyName,
+                password: data.password,
+            });
+
+            if (!result.success) {
+                setError(result.error || "Failed to create account");
+                return;
+            }
 
             // Auto sign in after registration
-            const result = await signIn("credentials", {
+            const signInResult = await signIn("credentials", {
                 email: data.email,
                 password: data.password,
                 redirect: false,
             });
 
-            if (result?.error) {
-                // For demo, just redirect anyway
-                router.push("/onboarding");
+            if (signInResult?.error) {
+                setError("Account created, but failed to sign in automatically. Please log in.");
+                router.push("/login");
                 return;
             }
 
-            router.push("/onboarding");
+            // Redirect to dashboard (onboarding page doesn't exist yet)
+            router.push("/dashboard");
         } catch (err) {
+            console.error(err);
             setError("Something went wrong. Please try again.");
         }
     };
