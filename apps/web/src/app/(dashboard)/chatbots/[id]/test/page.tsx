@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { Send, Bot, User, RefreshCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -10,39 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useParams } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 
-/* interface Message removed as it comes from ai/react */
-
 export default function ChatbotTestPage() {
     const params = useParams();
 
-    const [input, setInput] = useState("");
-
-    const { messages, status, regenerate, setMessages, sendMessage } = useChat({
+    const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
         api: '/api/chat',
         body: { chatbotId: params.id },
-    } as any);
-
-    const isLoading = status === "streaming" || status === "submitted";
-    const reload = regenerate; // Alias for compatibility with existing code if it uses reload
-
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLTextAreaElement>) => {
-        setInput(e.target.value);
-    };
-
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        if (!input.trim()) return;
-
-        const userMessage = { role: 'user', content: input };
-        setInput("");
-
-        // Use sendMessage if available, or try append (cast to any if needed to bypass strict type if method exists but not in type)
-        // But based on type definition, sendMessage is available.
-        // If sendMessage expects event, this is wrong. But getting raw message is better.
-        // Actually, let's try calling sendMessage with the message object.
-        await sendMessage(userMessage as any);
-    };
+    });
 
     // Auto-scroll
     const messagesEndRef = useRef<HTMLDivElement>(null);
