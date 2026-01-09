@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.7",
+    "@ai-sdk/google": "^3.0.6",
     "@ai-sdk/react": "^3.0.25",
     "@chatbot-ai/ai": "workspace:*",
     "@chatbot-ai/database": "workspace:*",
@@ -41,7 +41,6 @@
     "next": "16.1.1",
     "next-auth": "5.0.0-beta.30",
     "next-themes": "^0.4.6",
-    "openai": "^6.15.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.70.0",
