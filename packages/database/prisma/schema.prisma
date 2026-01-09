@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Enums
+enum UserRole {
+  OWNER
+  ADMIN
+  VIEWER
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  BUSINESS
+}
+
+enum ChatbotStatus {
+  ACTIVE
+  PAUSED
+  TRAINING
+  ERROR
+}
+
+enum Personality {
+  FORMAL
+  FRIENDLY
+  CASUAL
+}
+
+enum DataSourceType {
+  WEBSITE
+  FILE
+  TEXT
+}
+
+enum DataSourceStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
+enum ConversationStatus {
+  ACTIVE
+  RESOLVED
+  ESCALATED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum Feedback {
+  POSITIVE
+  NEGATIVE
+}
+
+// Models
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  workspaceId   String
+  role          UserRole  @default(VIEWER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  accounts  Account[]
+  sessions  Session[]
+
+  @@index([email])
+  @@index([workspaceId])
+}
+
+model Workspace {
+  id                     String   @id @default(cuid())
+  name                   String
+  slug                   String   @unique
+  plan                   Plan     @default(FREE)
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  users        User[]
+  chatbots     Chatbot[]
+  dataSources  DataSource[]
+  usageRecords UsageRecord[]
+
+  @@index([slug])
+  @@index([stripeCustomerId])
+}
+
+model Chatbot {
+  id                    String        @id @default(cuid())
+  workspaceId           String
+  name                  String
+  publicId              String        @unique @default(cuid())
+  status                ChatbotStatus @default(ACTIVE)
+  language              String        @default("en")
+  welcomeMessage        String        @default("Hi! How can I help you today?")
+  personality           Personality   @default(FRIENDLY)
+  systemPrompt          String?
+  widgetConfig          Json          @default("{}")
+  leadCaptureEnabled    Boolean       @default(false)
+  leadCaptureFields     Json          @default("{}")
+  escalationEnabled     Boolean       @default(false)
+  escalationEmail       String?
+  onlyInternalKnowledge Boolean       @default(true)
+  lastTrainedAt         DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  workspace           Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chatbotDataSources  ChatbotDataSource[]
+  conversations       Conversation[]
+
+  @@index([workspaceId])
+  @@index([publicId])
+}
+
+model DataSource {
+  id           String           @id @default(cuid())
+  workspaceId  String
+  type         DataSourceType
+  name         String
+  status       DataSourceStatus @default(PENDING)
+  config       Json             @default("{}")
+  metadata     Json             @default("{}")
+  errorMessage String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chatbotDataSources ChatbotDataSource[]
+
+  @@index([workspaceId])
+  @@index([type])
+}
+
+model ChatbotDataSource {
+  chatbotId    String
+  dataSourceId String
+  included     Boolean @default(true)
+
+  chatbot    Chatbot    @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  @@id([chatbotId, dataSourceId])
+}
+
+model Conversation {
+  id              String             @id @default(cuid())
+  chatbotId       String
+  visitorId       String
+  status          ConversationStatus @default(ACTIVE)
+  leadEmail       String?
+  leadName        String?
+  leadPhone       String?
+  leadCompany     String?
+  metadata        Json               @default("{}")
+  feedback        Feedback?
+  feedbackComment String?
+  startedAt       DateTime           @default(now())
+  endedAt         DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  chatbot  Chatbot   @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([chatbotId])
+  @@index([visitorId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  sourcesUsed    Json?
+  tokensUsed     Int?
+  latencyMs      Int?
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+model UsageRecord {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  period       DateTime
+  chatCount    Int      @default(0)
+  messageCount Int      @default(0)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, period])
+}
+
+// NextAuth models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
