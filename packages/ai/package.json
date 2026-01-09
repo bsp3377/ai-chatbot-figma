@@ -7,8 +7,9 @@
         "build": "tsc"
     },
     "dependencies": {
-        "openai": "^4.28.0",
-        "@chatbot-ai/database": "workspace:*"
+        "@chatbot-ai/database": "workspace:*",
+        "@google/generative-ai": "^0.24.1",
+        "openai": "^6.15.0"
     },
     "devDependencies": {
         "typescript": "^5.3.0"

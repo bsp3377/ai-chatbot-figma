@@ -1,6 +1,6 @@
 'use server';
 
-import { google } from '@ai-sdk/google';
+import { openai } from '@ai-sdk/openai';
 import { streamText } from 'ai';
 import { generateEmbedding } from '@chatbot-ai/ai';
 import { prisma } from '@/lib/db';
@@ -10,7 +10,6 @@ export async function getChatResponse(messages: any[], chatbotId: string) {
     const userQuery = lastMessage.content;
 
     // 1. Get embedding for user query
-    // This now uses Gemini embeddings (768 dimensions) via the updated @chatbot-ai/ai package
     const queryEmbedding = await generateEmbedding(userQuery);
 
     // 2. Find similar chunks
@@ -27,13 +26,9 @@ export async function getChatResponse(messages: any[], chatbotId: string) {
     if (dataSourceIds.length > 0) {
         const vectorString = `[${queryEmbedding.join(',')}]`;
 
-        // Handle empty array case for IN clause
         if (dataSourceIds.length > 0) {
-            // Create a safe string for the IN clause
             const idsList = dataSourceIds.map((id: string) => `'${id}'`).join(',');
 
-            // We use raw query to search with pgvector
-            // Note: embedding is now 768 dimensions, passing generic array works if types match
             const similarChunks = await prisma.$queryRawUnsafe(`
                 SELECT content, 1 - (embedding <=> ${vectorString}::vector) as score
                 FROM "DocumentChunk"
@@ -63,9 +58,9 @@ export async function getChatResponse(messages: any[], chatbotId: string) {
     ${context}
   `;
 
-    // 5. Stream response using Gemini
+    // 5. Stream response using OpenAI
     const result = streamText({
-        model: google('gemini-1.5-flash'),
+        model: openai('gpt-4o-mini'),
         system: systemPrompt,
         messages,
     });

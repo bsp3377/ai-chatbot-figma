@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.6",
+    "@ai-sdk/openai": "^3.0.7",
     "@ai-sdk/react": "^3.0.25",
     "@chatbot-ai/ai": "workspace:*",
     "@chatbot-ai/database": "workspace:*",
