@@ -17,8 +17,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { db } from "@/lib/db";
 
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
 export default async function ChatbotsPage() {
-    const chatbots = await db.chatbot.findMany({ where: { workspaceId: "ws_1" } });
+    const session = await auth();
+
+    if (!session?.user?.workspaceId) {
+        redirect("/login");
+    }
+
+    const chatbots = await db.chatbot.findMany({
+        where: { workspaceId: session.user.workspaceId },
+        orderBy: { createdAt: 'desc' }
+    });
 
     return (
         <div className="space-y-6">
