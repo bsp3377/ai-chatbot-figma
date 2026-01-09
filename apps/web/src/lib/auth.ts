@@ -2,38 +2,8 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { z } from "zod";
 
-// Mock user database for development
-type Plan = "FREE" | "STARTER" | "PRO" | "BUSINESS";
-
-const MOCK_USERS: Array<{
-    id: string;
-    email: string;
-    name: string;
-    password: string;
-    workspaceId: string;
-    role: "OWNER" | "ADMIN" | "VIEWER";
-    workspace: {
-        id: string;
-        name: string;
-        slug: string;
-        plan: Plan;
-    };
-}> = [
-        {
-            id: "user_1",
-            email: "demo@chatbotai.com",
-            name: "Demo User",
-            password: "demo1234",
-            workspaceId: "ws_1",
-            role: "OWNER",
-            workspace: {
-                id: "ws_1",
-                name: "Demo Workspace",
-                slug: "demo",
-                plan: "PRO",
-            },
-        },
-    ];
+import { prisma } from "@/lib/db";
+import { compare, hash } from "bcryptjs";
 
 const loginSchema = z.object({
     email: z.string().email(),
@@ -57,12 +27,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 const { email, password } = parsed.data;
 
-                // Mock authentication - in production, use database
-                const user = MOCK_USERS.find(
-                    (u) => u.email === email && u.password === password
-                );
+                const user = await prisma.user.findUnique({
+                    where: { email },
+                    include: { workspace: true }
+                });
 
-                if (!user) {
+                if (!user || !user.passwordHash) {
+                    return null;
+                }
+
+                const isValid = await compare(password, user.passwordHash);
+
+                if (!isValid) {
                     return null;
                 }
 
@@ -104,34 +80,50 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session: {
         strategy: "jwt",
     },
-    secret: process.env.NEXTAUTH_SECRET || "dev-secret-change-in-production",
+    secret: process.env.NEXTAUTH_SECRET,
     trustHost: true,
 });
 
-// Mock function to register a new user
 export async function registerUser(data: {
     email: string;
     password: string;
     name: string;
     companyName: string;
 }) {
-    console.log("[Mock] Registering user:", data.email);
+    console.log("Registering user:", data.email);
 
-    const newUser = {
-        id: `user_${Date.now()}`,
-        email: data.email,
-        name: data.name,
-        workspaceId: `ws_${Date.now()}`,
-        role: "OWNER" as const,
-        workspace: {
-            id: `ws_${Date.now()}`,
-            name: data.companyName,
-            slug: data.companyName.toLowerCase().replace(/\s+/g, "-"),
-            plan: "FREE" as Plan,
-        },
-    };
+    const existingUser = await prisma.user.findUnique({
+        where: { email: data.email }
+    });
 
-    MOCK_USERS.push({ ...newUser, password: data.password });
+    if (existingUser) {
+        throw new Error("User already exists");
+    }
+
+    const passwordHash = await hash(data.password, 10);
+
+    // Create user and workspace in a transaction
+    const newUser = await prisma.$transaction(async (tx) => {
+        const workspace = await tx.workspace.create({
+            data: {
+                name: data.companyName,
+                slug: data.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now(),
+                plan: "FREE",
+            }
+        });
+
+        const user = await tx.user.create({
+            data: {
+                email: data.email,
+                name: data.name,
+                passwordHash,
+                role: "OWNER",
+                workspaceId: workspace.id,
+            }
+        });
+
+        return user;
+    });
 
     return newUser;
 }
