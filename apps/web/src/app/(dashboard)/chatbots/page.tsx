@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Plus, Bot, MoreHorizontal, Search, Filter, Zap, MessageSquare, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+
+export const dynamic = 'force-dynamic';
+
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,7 +53,7 @@ export default async function ChatbotsPage() {
             {/* Chatbots Grid */}
             {chatbots.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {chatbots.map((bot) => (
+                    {chatbots.map((bot: any) => (
                         <ChatbotCard key={bot.id} chatbot={bot} />
                     ))}
                 </div>

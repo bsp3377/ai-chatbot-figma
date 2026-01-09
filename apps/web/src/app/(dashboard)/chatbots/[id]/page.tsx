@@ -2,6 +2,7 @@ import { Bot, MessageSquare, Users, TrendingUp, CheckCircle2, Clock, Zap } from 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+export const dynamic = 'force-dynamic';
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -135,7 +136,7 @@ export default async function ChatbotOverviewPage({ params }: OverviewPageProps)
                     <CardContent>
                         <div className="space-y-3">
                             {conversations.length > 0 ? (
-                                conversations.map((conv) => (
+                                conversations.map((conv: any) => (
                                     <div
                                         key={conv.id}
                                         className="flex items-center justify-between p-3 rounded-lg border"

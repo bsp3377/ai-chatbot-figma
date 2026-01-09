@@ -27,7 +27,7 @@ export async function getChatResponse(messages: any[], chatbotId: string) {
         select: { dataSourceId: true }
     });
 
-    const dataSourceIds = chatbotDataSources.map(ds => ds.dataSourceId);
+    const dataSourceIds = chatbotDataSources.map((ds: { dataSourceId: string }) => ds.dataSourceId);
 
     // If no sources, just chat without context
     let context = '';
@@ -57,7 +57,7 @@ export async function getChatResponse(messages: any[], chatbotId: string) {
         // Handle empty array case for IN clause
         if (dataSourceIds.length > 0) {
             // Create a safe string for the IN clause
-            const idsList = dataSourceIds.map(id => `'${id}'`).join(',');
+            const idsList = dataSourceIds.map((id: string) => `'${id}'`).join(',');
 
             const similarChunks = await prisma.$queryRawUnsafe(`
                 SELECT content, 1 - (embedding <=> ${vectorString}::vector) as score
@@ -99,5 +99,5 @@ export async function getChatResponse(messages: any[], chatbotId: string) {
     // We should ideally sync this after response or partly.
     // For V1, we just return the stream.
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
 }

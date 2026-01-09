@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
 // Stats data
 const stats = [
     {
@@ -97,10 +99,10 @@ export default async function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {chatbots.slice(0, 3).map((bot) => (
+                            {chatbots.slice(0, 3).map((bot: any) => (
                                 <Link
                                     key={bot.id}
-                                    href={`/chatbots/${bot.id}`}
+                                    href={`/ chatbots / ${bot.id} `}
                                     className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
                                 >
                                     <div className="flex items-center gap-3">
@@ -155,7 +157,7 @@ export default async function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {conversations.map((conv) => (
+                            {conversations.map((conv: any) => (
                                 <div
                                     key={conv.id}
                                     className="flex items-center justify-between p-3 rounded-lg border"
@@ -166,7 +168,7 @@ export default async function DashboardPage() {
                                         </div>
                                         <div>
                                             <p className="font-medium text-gray-900">
-                                                {conv.leadName || `Visitor ${conv.visitorId.slice(-6)}`}
+                                                {conv.leadName || `Visitor ${conv.visitorId.slice(-6)} `}
                                             </p>
                                             <p className="text-sm text-gray-500">
                                                 {conv.messageCount || 0} messages · {formatRelativeTime(conv.startedAt)}

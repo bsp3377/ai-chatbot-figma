@@ -34,8 +34,8 @@ export default async function ChatbotKnowledgePage({ params }: { params: { id: s
 
     if (!chatbot) return <div>Chatbot not found</div>;
 
-    const sources = chatbot.chatbotDataSources.map(cds => cds.dataSource);
-    const totalChunks = sources.reduce((acc, s) => acc + s._count.documentChunks, 0);
+    const sources = chatbot.chatbotDataSources.map((cds: any) => cds.dataSource);
+    const totalChunks = sources.reduce((acc: number, s: any) => acc + s._count.documentChunks, 0);
 
     const getIcon = (type: string) => {
         switch (type) {
@@ -107,7 +107,7 @@ export default async function ChatbotKnowledgePage({ params }: { params: { id: s
                             No sources added yet. Click "Add Source" to get started.
                         </div>
                     ) : (
-                        sources.map((source) => {
+                        sources.map((source: any) => {
                             const Icon = getIcon(source.type);
                             return (
                                 <div

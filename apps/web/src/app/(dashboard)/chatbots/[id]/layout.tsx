@@ -34,7 +34,7 @@ export default async function ChatbotLayout({ children, params }: ChatbotLayoutP
         ERROR: "bg-red-100 text-red-700",
     };
 
-    const widgetColor = chatbot.widgetConfig?.color || "#3B82F6";
+    const widgetColor = (chatbot.widgetConfig as any)?.color || "#3B82F6";
 
     const tabs = [
         { id: "overview", label: "Overview", href: `/chatbots/${id}` },
