@@ -1,5 +1,5 @@
 {
-    "buildCommand": "pnpm build",
+    "buildCommand": "cd ../../packages/database && pnpm db:generate && cd ../../apps/web && pnpm build",
     "installCommand": "pnpm install --no-frozen-lockfile",
     "framework": "nextjs"
 }
