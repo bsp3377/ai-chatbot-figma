@@ -70,5 +70,5 @@ export async function getChatResponse(messages: any[], chatbotId: string) {
         messages,
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
 }
