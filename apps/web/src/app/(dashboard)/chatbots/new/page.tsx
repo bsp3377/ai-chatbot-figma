@@ -75,7 +75,7 @@ export default function CreateChatbotPage() {
         setIsSubmitting(true);
         try {
             const { createChatbot } = await import("@/actions/chatbot-actions");
-            // Pass all form data
+            // Pass all form data including websiteUrl and customText
             const newBot = await createChatbot({
                 name: formData.name,
                 welcomeMessage: formData.welcomeMessage,
@@ -85,15 +85,17 @@ export default function CreateChatbotPage() {
                 widgetColor: formData.widgetColor,
                 widgetPosition: formData.widgetPosition,
                 buttonText: formData.buttonText,
-                // Note: customText and websiteUrl are handled after creation or should be passed if action supports it
-                // For now, let's assume action handles basic setup and we skip sources
+                websiteUrl: formData.websiteUrl,
+                customText: formData.customText,
             });
             router.push(`/chatbots/${newBot.id}`);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create chatbot:", error);
+            alert(`Failed to create chatbot: ${error?.message || 'Unknown error'}`);
             setIsSubmitting(false);
         }
     };
+
 
     // ... existing canProceed ...
     const canProceed = () => {
