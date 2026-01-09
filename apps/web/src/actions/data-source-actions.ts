@@ -47,7 +47,20 @@ export async function addUrlSource(chatbotId: string, url: string) {
         });
 
         // Use AI package for chunking
-        const chunks = await chunkText(content);
+        const rawChunks = await chunkText(content);
+        // Clean and filter chunks
+        const chunks = rawChunks
+            .map(c => c.replace(/\n/g, ' ').trim())
+            .filter(c => c.length > 0);
+
+        if (chunks.length === 0) {
+            console.warn(`No valid content found for URL: ${url}`);
+            await prisma.dataSource.update({
+                where: { id: source.id },
+                data: { status: 'READY', lastSyncedAt: new Date() }, // Mark ready even if empty to avoid sticking in PROCESSING
+            });
+            return;
+        }
 
         // Generate embeddings in batch
         const embeddings = await generateEmbeddings(chunks);
@@ -112,7 +125,21 @@ export async function addTextSource(chatbotId: string, title: string, content: s
     });
 
     try {
-        const chunks = await chunkText(content);
+        const rawChunks = await chunkText(content);
+        // Clean and filter chunks
+        const chunks = rawChunks
+            .map(c => c.replace(/\n/g, ' ').trim())
+            .filter(c => c.length > 0);
+
+        if (chunks.length === 0) {
+            // Nothing to index
+            await prisma.dataSource.update({
+                where: { id: source.id },
+                data: { status: 'READY', lastSyncedAt: new Date() },
+            });
+            return;
+        }
+
         const embeddings = await generateEmbeddings(chunks);
 
         const vectorEntries = chunks.map((chunk, index) => ({
