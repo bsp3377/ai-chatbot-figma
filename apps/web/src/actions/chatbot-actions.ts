@@ -5,9 +5,20 @@ import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+import { addUrlSource, addTextSource } from './data-source-actions';
+
 export async function createChatbot(data: {
     name: string;
     workspaceId?: string;
+    welcomeMessage?: string;
+    personality?: string;
+    systemPrompt?: string;
+    language?: string;
+    widgetColor?: string;
+    widgetPosition?: string;
+    buttonText?: string;
+    websiteUrl?: string; // Added
+    customText?: string; // Added
 }) {
     const session = await auth();
     if (!session?.user?.email) throw new Error('Unauthorized');
@@ -25,8 +36,36 @@ export async function createChatbot(data: {
             workspaceId: user.workspaceId,
             status: 'ACTIVE',
             publicId: crypto.randomUUID(),
+            welcomeMessage: data.welcomeMessage,
+            personality: data.personality ? data.personality.toUpperCase() as any : 'FRIENDLY',
+            systemPrompt: data.systemPrompt,
+            language: data.language || 'en',
+            widgetConfig: {
+                color: data.widgetColor || '#3B82F6',
+                position: data.widgetPosition || 'bottom-right',
+                buttonText: data.buttonText || 'Chat with us',
+            },
         },
     });
+
+    // Add initial data sources
+    if (data.websiteUrl) {
+        // Run in background / don't block
+        // Note: In serverless, we should await or use waitUntil. For V1 validation we await.
+        try {
+            await addUrlSource(chatbot.id, data.websiteUrl);
+        } catch (e) {
+            console.error("Failed to add initial website source", e);
+        }
+    }
+
+    if (data.customText && data.customText.trim().length > 0) {
+        try {
+            await addTextSource(chatbot.id, "Initial Knowledge Base", data.customText);
+        } catch (e) {
+            console.error("Failed to add initial text source", e);
+        }
+    }
 
     revalidatePath('/chatbots');
     return chatbot;

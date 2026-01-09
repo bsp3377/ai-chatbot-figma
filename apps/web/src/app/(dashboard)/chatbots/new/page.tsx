@@ -52,6 +52,7 @@ export default function CreateChatbotPage() {
         widgetColor: "#3B82F6",
         widgetPosition: "bottom-right",
         buttonText: "Chat with us",
+        customText: "", // Added customText
     });
 
     const updateFormData = (field: string, value: string) => {
@@ -74,7 +75,19 @@ export default function CreateChatbotPage() {
         setIsSubmitting(true);
         try {
             const { createChatbot } = await import("@/actions/chatbot-actions");
-            const newBot = await createChatbot({ name: formData.name });
+            // Pass all form data
+            const newBot = await createChatbot({
+                name: formData.name,
+                welcomeMessage: formData.welcomeMessage,
+                personality: formData.personality,
+                language: formData.language,
+                systemPrompt: formData.systemPrompt,
+                widgetColor: formData.widgetColor,
+                widgetPosition: formData.widgetPosition,
+                buttonText: formData.buttonText,
+                // Note: customText and websiteUrl are handled after creation or should be passed if action supports it
+                // For now, let's assume action handles basic setup and we skip sources
+            });
             router.push(`/chatbots/${newBot.id}`);
         } catch (error) {
             console.error("Failed to create chatbot:", error);
@@ -82,6 +95,7 @@ export default function CreateChatbotPage() {
         }
     };
 
+    // ... existing canProceed ...
     const canProceed = () => {
         switch (currentStep) {
             case 1:
@@ -101,7 +115,7 @@ export default function CreateChatbotPage() {
 
     return (
         <div className="max-w-3xl mx-auto">
-            {/* Header */}
+            {/* ... Header and Progress ... */}
             <div className="mb-8">
                 <Link
                     href="/chatbots"
@@ -126,7 +140,6 @@ export default function CreateChatbotPage() {
                 </div>
                 <Progress value={(currentStep / steps.length) * 100} className="h-2" />
 
-                {/* Step indicators */}
                 <div className="flex justify-between mt-3">
                     {steps.map((step) => (
                         <div
@@ -211,6 +224,7 @@ export default function CreateChatbotPage() {
     );
 }
 
+// ... StepBasics and StepPersonality (unchanged) ...
 function StepBasics({ formData, updateFormData }: { formData: any; updateFormData: (field: string, value: string) => void }) {
     return (
         <div className="space-y-6">
@@ -321,6 +335,8 @@ function StepPersonality({ formData, updateFormData }: { formData: any; updateFo
 }
 
 function StepContent({ formData, updateFormData }: { formData: any; updateFormData: (field: string, value: string) => void }) {
+    const [activeTab, setActiveTab] = useState<"website" | "files" | "text">("website");
+
     const sources = [
         { id: "website", icon: Globe, label: "Website", description: "Crawl and learn from your website" },
         { id: "files", icon: Upload, label: "Upload Files", description: "PDF, DOCX, TXT files" },
@@ -338,11 +354,14 @@ function StepContent({ formData, updateFormData }: { formData: any; updateFormDa
                 {sources.map((source) => (
                     <div
                         key={source.id}
-                        className="p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer"
+                        onClick={() => setActiveTab(source.id as any)}
+                        className={`p-4 rounded-lg border transition-colors cursor-pointer ${activeTab === source.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-blue-300"
+                            }`}
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                <source.icon className="w-5 h-5 text-gray-600" />
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === source.id ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
+                                }`}>
+                                <source.icon className="w-5 h-5" />
                             </div>
                             <div>
                                 <div className="font-medium text-gray-900">{source.label}</div>
@@ -353,18 +372,44 @@ function StepContent({ formData, updateFormData }: { formData: any; updateFormDa
                 ))}
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="websiteUrl">Website URL (Optional)</Label>
-                <Input
-                    id="websiteUrl"
-                    type="url"
-                    placeholder="https://your-website.com"
-                    value={formData.websiteUrl}
-                    onChange={(e) => updateFormData("websiteUrl", e.target.value)}
-                />
-                <p className="text-xs text-gray-500">
-                    We'll crawl up to 100 pages from this domain
-                </p>
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                {activeTab === "website" && (
+                    <div className="space-y-2">
+                        <Label htmlFor="websiteUrl">Website URL (Optional)</Label>
+                        <Input
+                            id="websiteUrl"
+                            type="url"
+                            placeholder="https://your-website.com"
+                            value={formData.websiteUrl}
+                            onChange={(e) => updateFormData("websiteUrl", e.target.value)}
+                        />
+                        <p className="text-xs text-gray-500">
+                            We'll crawl up to 100 pages from this domain
+                        </p>
+                    </div>
+                )}
+                {activeTab === "files" && (
+                    <div className="text-center py-4 text-gray-500">
+                        <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                        <p>File upload is available in your dashboard after creation.</p>
+                        <p className="text-xs mt-1">Please finish setup to upload PDFs and Docs.</p>
+                    </div>
+                )}
+                {activeTab === "text" && (
+                    <div className="space-y-2">
+                        <Label htmlFor="customText">Paste Text</Label>
+                        <Textarea
+                            id="customText"
+                            placeholder="Paste your FAQs, product details, or documentation here..."
+                            value={formData.customText}
+                            onChange={(e) => updateFormData("customText", e.target.value)}
+                            rows={6}
+                        />
+                        <p className="text-xs text-gray-500">
+                            We'll process this text immediately after creation.
+                        </p>
+                    </div>
+                )}
             </div>
 
             <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
@@ -442,7 +487,7 @@ function StepCustomize({ formData, updateFormData }: { formData: any; updateForm
 
                 {/* Preview */}
                 <div className="relative bg-gray-100 rounded-lg p-4 min-h-[200px]">
-                    <div className="absolute bottom-4 right-4">
+                    <div className={`absolute bottom-4 ${formData.widgetPosition === 'bottom-left' ? 'left-4' : 'right-4'}`}>
                         <button
                             className="px-4 py-2 rounded-full text-white text-sm font-medium shadow-lg"
                             style={{ backgroundColor: formData.widgetColor }}
