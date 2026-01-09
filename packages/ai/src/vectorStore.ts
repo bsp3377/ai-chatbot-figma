@@ -1,90 +1,79 @@
-// Mock Vector Store - In-memory implementation
-// In production, replace with Pinecone or pgvector
+import { prisma, DocumentChunk } from '@chatbot-ai/database';
 
 interface VectorEntry {
     id: string;
     vector: number[];
-    metadata: {
-        chatbotId: string;
-        sourceId: string;
-        content: string;
-        url?: string;
-        title?: string;
-    };
+    content: string;
+    metadata: any;
+    dataSourceId: string;
 }
 
-class MockVectorStore {
-    private vectors: Map<string, VectorEntry> = new Map();
-
+export const vectorStore = {
     async upsert(entries: VectorEntry[]): Promise<void> {
-        console.log(`[Mock VectorStore] Upserting ${entries.length} vectors`);
+        // Prisma doesn't support bulk create with unsupported types (vector) easily in one go 
+        // if we want to be type-safe, but we can do it with a loop or raw query.
+        // For simplicity and safety with the vector type, we'll use a transaction of creates/updates
+        // or just simple creates. Since these are chunks, we usually delete old ones and re-create.
+
+        // However, standard prisma create works if we cast the vector.
+        // But the input 'embedding' field in schema is Unsupported("vector(1536)")
+        // So we must use $executeRaw or similar for correct casting, OR rely on Prisma 5+ features if enabled.
+        // The schema uses `extensions = [vector]`.
+
+        // Recommended approach for pgvector in Prisma:
+        // Use $executeRaw to insert vectors.
 
         for (const entry of entries) {
-            this.vectors.set(entry.id, entry);
+            // We need to format the vector as a string for PostgreSQL
+            const vectorString = `[${entry.vector.join(',')}]`;
+
+            await prisma.$executeRaw`
+                INSERT INTO "DocumentChunk" ("id", "content", "metadata", "embedding", "dataSourceId", "tokens", "createdAt")
+                VALUES (${entry.id}, ${entry.content}, ${entry.metadata}, ${vectorString}::vector, ${entry.dataSourceId}, 0, NOW())
+                ON CONFLICT ("id") DO UPDATE SET
+                "content" = ${entry.content},
+                "metadata" = ${entry.metadata},
+                "embedding" = ${vectorString}::vector
+            `;
         }
-    }
+    },
 
     async query(
         queryVector: number[],
         options: {
             topK?: number;
-            filter?: { chatbotId: string };
+            filter?: { dataSourceId?: string };
         }
-    ): Promise<Array<{ id: string; score: number; metadata: VectorEntry['metadata'] }>> {
+    ): Promise<Array<DocumentChunk & { score: number }>> {
         const { topK = 5, filter } = options;
+        const vectorString = `[${queryVector.join(',')}]`;
 
-        console.log(`[Mock VectorStore] Querying with topK=${topK}`);
-
-        let entries = Array.from(this.vectors.values());
-
-        // Apply filter
-        if (filter?.chatbotId) {
-            entries = entries.filter(e => e.metadata.chatbotId === filter.chatbotId);
+        // If filtering by dataSourceId
+        if (filter?.dataSourceId) {
+            return prisma.$queryRaw`
+                SELECT id, content, "dataSourceId", metadata, tokens, 1 - (embedding <=> ${vectorString}::vector) as score
+                FROM "DocumentChunk"
+                WHERE "dataSourceId" = ${filter.dataSourceId}
+                ORDER BY embedding <=> ${vectorString}::vector
+                LIMIT ${topK}
+            `;
         }
 
-        // Calculate cosine similarity
-        const results = entries.map(entry => ({
-            id: entry.id,
-            score: cosineSimilarity(queryVector, entry.vector),
-            metadata: entry.metadata,
-        }));
+        // Global search (if needed)
+        return prisma.$queryRaw`
+            SELECT id, content, "dataSourceId", metadata, tokens, 1 - (embedding <=> ${vectorString}::vector) as score
+            FROM "DocumentChunk"
+            ORDER BY embedding <=> ${vectorString}::vector
+            LIMIT ${topK}
+        `;
+    },
 
-        // Sort by score descending and take topK
-        return results
-            .sort((a, b) => b.score - a.score)
-            .slice(0, topK);
-    }
-
-    async delete(filter: { chatbotId: string }): Promise<void> {
-        console.log(`[Mock VectorStore] Deleting vectors for chatbot: ${filter.chatbotId}`);
-
-        for (const [id, entry] of this.vectors) {
-            if (entry.metadata.chatbotId === filter.chatbotId) {
-                this.vectors.delete(id);
+    async delete(options: { dataSourceId: string }): Promise<void> {
+        await prisma.documentChunk.deleteMany({
+            where: {
+                dataSourceId: options.dataSourceId
             }
-        }
+        });
     }
+};
 
-    getCount(): number {
-        return this.vectors.size;
-    }
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) return 0;
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < a.length; i++) {
-        dotProduct += a[i] * b[i];
-        normA += a[i] * a[i];
-        normB += b[i] * b[i];
-    }
-
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-// Singleton instance
-export const vectorStore = new MockVectorStore();

@@ -1,102 +1,116 @@
-// Content chunking utilities
-
-export interface Chunk {
-    id: string;
-    content: string;
-    metadata: {
-        sourceId: string;
-        sourceType: 'website' | 'file' | 'text';
-        url?: string;
-        title?: string;
-        position: number;
-    };
+export interface ChunkingOptions {
+    chunkSize?: number;
+    chunkOverlap?: number;
 }
 
-const CHUNK_SIZE = 1000;
-const CHUNK_OVERLAP = 200;
+export class RecursiveCharacterTextSplitter {
+    private chunkSize: number;
+    private chunkOverlap: number;
+    private separators: string[];
 
-export function chunkText(
-    text: string,
-    sourceId: string,
-    sourceType: 'website' | 'file' | 'text',
-    options?: { url?: string; title?: string }
-): Chunk[] {
-    const chunks: Chunk[] = [];
-
-    // Clean and normalize text
-    const cleanedText = text
-        .replace(/\s+/g, ' ')
-        .replace(/\n+/g, '\n')
-        .trim();
-
-    if (cleanedText.length <= CHUNK_SIZE) {
-        chunks.push({
-            id: `${sourceId}-0`,
-            content: cleanedText,
-            metadata: {
-                sourceId,
-                sourceType,
-                url: options?.url,
-                title: options?.title,
-                position: 0,
-            },
-        });
-        return chunks;
+    constructor(options?: ChunkingOptions) {
+        this.chunkSize = options?.chunkSize ?? 1000;
+        this.chunkOverlap = options?.chunkOverlap ?? 200;
+        this.separators = ["\n\n", "\n", " ", ""];
     }
 
-    // Split by paragraphs first
-    const paragraphs = cleanedText.split(/\n\n+/);
-    let currentChunk = '';
-    let position = 0;
+    async splitText(text: string): Promise<string[]> {
+        const finalChunks: string[] = [];
+        let goodSplits: string[] = [];
 
-    for (const paragraph of paragraphs) {
-        if (currentChunk.length + paragraph.length > CHUNK_SIZE) {
-            // Save current chunk if not empty
-            if (currentChunk.trim()) {
-                chunks.push({
-                    id: `${sourceId}-${position}`,
-                    content: currentChunk.trim(),
-                    metadata: {
-                        sourceId,
-                        sourceType,
-                        url: options?.url,
-                        title: options?.title,
-                        position,
-                    },
-                });
-                position++;
+        // Simplistic implementation of recursive splitting
+        // Ideally we'd use LangChain's implementation, but this is a lightweight version
 
-                // Keep overlap from end of current chunk
-                const words = currentChunk.trim().split(' ');
-                const overlapWords = Math.ceil(CHUNK_OVERLAP / 5); // ~5 chars per word
-                currentChunk = words.slice(-overlapWords).join(' ') + ' ';
+        goodSplits = await this._splitText(text, this.separators);
+
+        return goodSplits;
+    }
+
+    private async _splitText(text: string, separators: string[]): Promise<string[]> {
+        const finalChunks: string[] = [];
+        let separator = separators[0];
+        let newSeparators: string[] = [];
+
+        for (let i = 0; i < separators.length; i++) {
+            const s = separators[i];
+            if (s === "") {
+                separator = s;
+                break;
+            }
+            if (text.includes(s)) {
+                separator = s;
+                newSeparators = separators.slice(i + 1);
+                break;
             }
         }
 
-        currentChunk += paragraph + '\n\n';
+        const splits = separator ? text.split(separator) : [text];
+        let goodSplits: string[] = [];
+
+        for (const split of splits) {
+            if (split.length < this.chunkSize) {
+                goodSplits.push(split);
+            } else {
+                if (newSeparators.length > 0) {
+                    const subSplits = await this._splitText(split, newSeparators);
+                    goodSplits.push(...subSplits);
+                } else {
+                    goodSplits.push(split); // Too big but can't split further
+                }
+            }
+        }
+
+        // Merge splits back together if they are small enough
+        return this._mergeSplits(goodSplits, separator);
     }
 
-    // Don't forget the last chunk
-    if (currentChunk.trim()) {
-        chunks.push({
-            id: `${sourceId}-${position}`,
-            content: currentChunk.trim(),
-            metadata: {
-                sourceId,
-                sourceType,
-                url: options?.url,
-                title: options?.title,
-                position,
-            },
-        });
+    private _mergeSplits(splits: string[], separator: string): string[] {
+        const docs: string[] = [];
+        let currentDoc: string[] = [];
+        let total = 0;
+
+        for (const split of splits) {
+            const len = split.length;
+            if (total + len + (currentDoc.length > 0 ? separator.length : 0) > this.chunkSize) {
+                if (currentDoc.length > 0) {
+                    const doc = currentDoc.join(separator);
+                    if (doc !== null && doc !== undefined) {
+                        docs.push(doc);
+                    }
+
+                    // Keep overlap
+                    while (total > this.chunkOverlap || (total + len > this.chunkSize && total > 0)) {
+                        total -= currentDoc[0].length + (currentDoc.length > 1 ? separator.length : 0);
+                        currentDoc.shift();
+                    }
+                }
+            }
+
+            currentDoc.push(split);
+            total += len + (currentDoc.length > 1 ? separator.length : 0);
+        }
+
+        const doc = currentDoc.join(separator);
+        if (doc !== null && doc !== undefined) {
+            docs.push(doc);
+        }
+
+        return docs;
     }
 
-    console.log(`[Chunking] Created ${chunks.length} chunks from source ${sourceId}`);
+}
 
-    return chunks;
+export async function chunkText(text: string, options?: ChunkingOptions): Promise<string[]> {
+    const splitter = new RecursiveCharacterTextSplitter(options);
+    return splitter.splitText(text);
+}
+
+export interface Chunk {
+    content: string;
+    tokens: number;
 }
 
 export function estimateTokenCount(text: string): number {
-    // Rough estimate: 1 token ≈ 4 characters
+    // Rough estimation: 1 token ~= 4 chars in English
     return Math.ceil(text.length / 4);
 }

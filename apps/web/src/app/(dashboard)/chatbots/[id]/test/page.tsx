@@ -7,75 +7,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface Message {
-    id: string;
-    role: "user" | "assistant";
-    content: string;
-    timestamp: Date;
-}
+import { useParams } from "next/navigation";
+import { useChat } from "ai/react";
+
+/* interface Message removed as it comes from ai/react */
 
 export default function ChatbotTestPage() {
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: "1",
-            role: "assistant",
-            content: "Hi! How can I help you today?",
-            timestamp: new Date(),
-        },
-    ]);
-    const [input, setInput] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const params = useParams();
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
+    const { messages, input, handleInputChange, handleSubmit, isLoading, reload, setMessages } = useChat({
+        api: '/api/chat',
+        body: { chatbotId: params.id }, // We need params to get ID
+    });
 
+    // Auto-scroll
     useEffect(() => {
-        scrollToBottom();
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    const handleSend = async () => {
-        if (!input.trim() || isLoading) return;
 
-        const userMessage: Message = {
-            id: Date.now().toString(),
-            role: "user",
-            content: input.trim(),
-            timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, userMessage]);
-        setInput("");
-        setIsLoading(true);
-
-        // Simulate AI response
-        await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000));
-
-        const responses = [
-            "Based on your question, I can help you with that! Our platform offers comprehensive solutions for your needs.",
-            "Great question! Let me explain how this works. You can customize all aspects of the experience through our settings.",
-            "I understand what you're looking for. Here's what I recommend based on your requirements.",
-            "Thanks for asking! This is a common question. The answer depends on your specific use case, but generally speaking...",
-        ];
-
-        const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            role: "assistant",
-            content: responses[Math.floor(Math.random() * responses.length)],
-            timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
-        setIsLoading(false);
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-        }
-    };
 
     const handleReset = () => {
         setMessages([
@@ -120,8 +70,8 @@ export default function ChatbotTestPage() {
                             >
                                 <div
                                     className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${message.role === "user"
-                                            ? "bg-gray-200"
-                                            : "bg-blue-600"
+                                        ? "bg-gray-200"
+                                        : "bg-blue-600"
                                         }`}
                                 >
                                     {message.role === "user" ? (
@@ -132,8 +82,8 @@ export default function ChatbotTestPage() {
                                 </div>
                                 <div
                                     className={`max-w-[70%] rounded-2xl px-4 py-2 ${message.role === "user"
-                                            ? "bg-blue-600 text-white"
-                                            : "bg-gray-100 text-gray-900"
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-gray-100 text-gray-900"
                                         }`}
                                 >
                                     <p className="text-sm">{message.content}</p>
@@ -161,16 +111,18 @@ export default function ChatbotTestPage() {
 
                     <div className="border-t p-4 flex-shrink-0">
                         <div className="flex gap-2">
-                            <Input
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder="Type a message..."
-                                disabled={isLoading}
-                            />
-                            <Button onClick={handleSend} disabled={!input.trim() || isLoading}>
-                                <Send className="w-4 h-4" />
-                            </Button>
+                            <form onSubmit={handleSubmit} className="flex gap-2 w-full">
+                                <Input
+                                    value={input}
+                                    onChange={handleInputChange}
+                                    placeholder="Type a message..."
+                                    disabled={isLoading}
+                                    className="flex-1"
+                                />
+                                <Button type="submit" disabled={!input.trim() || isLoading}>
+                                    <Send className="w-4 h-4" />
+                                </Button>
+                            </form>
                         </div>
                     </div>
                 </Card>

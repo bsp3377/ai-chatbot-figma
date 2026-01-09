@@ -1,11 +1,13 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  extensions = [vector]
 }
 
 // Enums
@@ -150,6 +152,7 @@ model DataSource {
 
   workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   chatbotDataSources ChatbotDataSource[]
+  documentChunks     DocumentChunk[]
 
   @@index([workspaceId])
   @@index([type])
@@ -164,6 +167,21 @@ model ChatbotDataSource {
   dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
 
   @@id([chatbotId, dataSourceId])
+}
+
+model DocumentChunk {
+  id           String                       @id @default(cuid())
+  content      String
+  metadata     Json                         @default("{}")
+  embedding    Unsupported("vector(1536)")?
+  tokens       Int?
+  
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([dataSourceId])
 }
 
 model Conversation {

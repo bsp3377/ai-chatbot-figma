@@ -72,15 +72,14 @@ export default function CreateChatbotPage() {
 
     const handleCreate = async () => {
         setIsSubmitting(true);
-
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // In production, call API to create chatbot
-        console.log("Creating chatbot:", formData);
-
-        // Redirect to chatbot detail page
-        router.push("/chatbots/bot_new");
+        try {
+            const { createChatbot } = await import("@/actions/chatbot-actions");
+            const newBot = await createChatbot({ name: formData.name });
+            router.push(`/chatbots/${newBot.id}`);
+        } catch (error) {
+            console.error("Failed to create chatbot:", error);
+            setIsSubmitting(false);
+        }
     };
 
     const canProceed = () => {
@@ -133,18 +132,18 @@ export default function CreateChatbotPage() {
                         <div
                             key={step.id}
                             className={`flex items-center gap-1.5 text-xs ${step.id === currentStep
-                                    ? "text-blue-600 font-medium"
-                                    : step.id < currentStep
-                                        ? "text-green-600"
-                                        : "text-gray-400"
+                                ? "text-blue-600 font-medium"
+                                : step.id < currentStep
+                                    ? "text-green-600"
+                                    : "text-gray-400"
                                 }`}
                         >
                             <div
                                 className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium ${step.id === currentStep
-                                        ? "bg-blue-600 text-white"
-                                        : step.id < currentStep
-                                            ? "bg-green-500 text-white"
-                                            : "bg-gray-200 text-gray-500"
+                                    ? "bg-blue-600 text-white"
+                                    : step.id < currentStep
+                                        ? "bg-green-500 text-white"
+                                        : "bg-gray-200 text-gray-500"
                                     }`}
                             >
                                 {step.id < currentStep ? <Check className="w-3 h-3" /> : step.id}
@@ -294,8 +293,8 @@ function StepPersonality({ formData, updateFormData }: { formData: any; updateFo
                         key={p.id}
                         onClick={() => updateFormData("personality", p.id)}
                         className={`p-4 rounded-lg border-2 text-left transition-colors ${formData.personality === p.id
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-gray-200 hover:border-gray-300"
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"
                             }`}
                     >
                         <div className="font-medium text-gray-900">{p.label}</div>
@@ -405,8 +404,8 @@ function StepCustomize({ formData, updateFormData }: { formData: any; updateForm
                                     key={color}
                                     onClick={() => updateFormData("widgetColor", color)}
                                     className={`w-8 h-8 rounded-full border-2 transition-transform ${formData.widgetColor === color
-                                            ? "border-gray-900 scale-110"
-                                            : "border-transparent hover:scale-105"
+                                        ? "border-gray-900 scale-110"
+                                        : "border-transparent hover:scale-105"
                                         }`}
                                     style={{ backgroundColor: color }}
                                 />
