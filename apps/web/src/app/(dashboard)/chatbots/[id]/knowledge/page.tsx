@@ -14,9 +14,10 @@ import { prisma } from "@/lib/db";
 import { AddSourceDialog } from "@/components/dashboard/add-source-dialog";
 import { deleteSource } from "@/actions/data-source-actions";
 
-export default async function ChatbotKnowledgePage({ params }: { params: { id: string } }) {
+export default async function ChatbotKnowledgePage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const chatbot = await prisma.chatbot.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             chatbotDataSources: {
                 include: {
@@ -68,7 +69,7 @@ export default async function ChatbotKnowledgePage({ params }: { params: { id: s
                         Content your chatbot uses to answer questions
                     </p>
                 </div>
-                <AddSourceDialog chatbotId={params.id} />
+                <AddSourceDialog chatbotId={id} />
             </div>
 
             {/* Stats */}
