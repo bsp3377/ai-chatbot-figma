@@ -24,7 +24,7 @@ export async function getChatResponse(messages: any[], chatbotId: string) {
     let context = '';
 
     if (dataSourceIds.length > 0) {
-        const vectorString = `[${queryEmbedding.join(',')}]`;
+        const vectorString = `'[${queryEmbedding.join(',')}]'`;
 
         if (dataSourceIds.length > 0) {
             const idsList = dataSourceIds.map((id: string) => `'${id}'`).join(',');
@@ -58,12 +58,17 @@ export async function getChatResponse(messages: any[], chatbotId: string) {
     ${context}
   `;
 
-    // 5. Stream response using OpenAI
+    // 5. Stream response using AI SDK v4
     const result = streamText({
         model: openai('gpt-4o-mini'),
-        system: systemPrompt,
-        messages,
+        messages: [
+            { role: 'system', content: systemPrompt },
+            ...messages.map((m: any) => ({
+                role: m.role as 'user' | 'assistant',
+                content: m.content,
+            })),
+        ],
     });
 
-    return result.toTextStreamResponse();
+    return result.toDataStreamResponse();
 }

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { useParams } from "next/navigation";
-import { useChat } from "@ai-sdk/react";
+import { useChat } from "ai/react";
 
 export default function ChatbotTestPage() {
     const params = useParams();
