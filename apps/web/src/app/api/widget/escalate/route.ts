@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
                 data: {
                     endpointId: endpoint.id,
                     type: 'ESCALATION_REQUESTED',
-                    payload: payload as unknown as Record<string, unknown>,
+                    payload: payload as any,
                     status: 'PENDING',
                 },
             }).then(async (event) => {
