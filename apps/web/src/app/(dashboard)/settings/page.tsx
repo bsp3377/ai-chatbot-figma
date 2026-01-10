@@ -10,7 +10,8 @@ import {
     Key,
     Save,
     Upload,
-    LogOut
+    LogOut,
+    Code2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { WebhookSettings } from "@/components/dashboard/webhook-settings";
 
 export default function SettingsPage() {
     const [profile, setProfile] = useState({
@@ -77,6 +79,10 @@ export default function SettingsPage() {
                     <TabsTrigger value="security" className="gap-2">
                         <Shield className="w-4 h-4" />
                         Security
+                    </TabsTrigger>
+                    <TabsTrigger value="developers" className="gap-2">
+                        <Code2 className="w-4 h-4" />
+                        Developers
                     </TabsTrigger>
                 </TabsList>
 
@@ -387,6 +393,11 @@ export default function SettingsPage() {
                             </CardContent>
                         </Card>
                     </div>
+                </TabsContent>
+
+                {/* Developers Tab */}
+                <TabsContent value="developers">
+                    <WebhookSettings />
                 </TabsContent>
             </Tabs>
         </div>

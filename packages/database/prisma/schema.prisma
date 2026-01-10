@@ -68,6 +68,23 @@ enum Feedback {
   NEGATIVE
 }
 
+enum WebhookEventType {
+  TRAINING_STARTED
+  TRAINING_COMPLETE
+  TRAINING_FAILED
+  CONVERSATION_NEW
+  CONVERSATION_ENDED
+  ESCALATION_REQUESTED
+  LEAD_CAPTURED
+  USAGE_WARNING
+}
+
+enum WebhookEventStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 // Models
 model User {
   id            String    @id @default(cuid())
@@ -101,10 +118,11 @@ model Workspace {
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
-  users        User[]
-  chatbots     Chatbot[]
-  dataSources  DataSource[]
-  usageRecords UsageRecord[]
+  users            User[]
+  chatbots         Chatbot[]
+  dataSources      DataSource[]
+  usageRecords     UsageRecord[]
+  webhookEndpoints WebhookEndpoint[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -274,4 +292,42 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Webhook models
+model WebhookEndpoint {
+  id          String             @id @default(cuid())
+  workspaceId String
+  url         String
+  events      WebhookEventType[]
+  secret      String
+  active      Boolean            @default(true)
+  description String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  webhookEvents WebhookEvent[]
+
+  @@index([workspaceId])
+  @@index([active])
+}
+
+model WebhookEvent {
+  id         String             @id @default(cuid())
+  endpointId String?
+  type       WebhookEventType
+  payload    Json
+  status     WebhookEventStatus @default(PENDING)
+  attempts   Int                @default(0)
+  lastError  String?
+  sentAt     DateTime?
+  createdAt  DateTime           @default(now())
+
+  endpoint WebhookEndpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
+
+  @@index([endpointId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
 }

@@ -2,24 +2,52 @@ import {
     MessageSquare,
     Users,
     TrendingUp,
-    TrendingDown,
     Bot,
     ThumbsUp,
-    Clock,
     ArrowUpRight,
-    Filter
+    AlertTriangle,
+    UserPlus,
+    HelpCircle
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from "@/components/ui/select";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ period?: string }>;
+}) {
     const session = await auth();
+    const params = await searchParams;
+    const period = params.period || '30d';
+
+    // Calculate date range
+    let startDate = new Date();
+    switch (period) {
+        case '7d':
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+        case '30d':
+            startDate.setDate(startDate.getDate() - 30);
+            break;
+        case '90d':
+            startDate.setDate(startDate.getDate() - 90);
+            break;
+        default:
+            startDate.setDate(startDate.getDate() - 30);
+    }
 
     // Get user's workspace
     const user = session?.user?.email ? await prisma.user.findUnique({
@@ -41,17 +69,12 @@ export default async function AnalyticsPage() {
 
     const chatbotIds = chatbots.map(c => c.id);
 
-    // Date ranges
-    const now = new Date();
-    const startOfPeriod = new Date();
-    startOfPeriod.setDate(startOfPeriod.getDate() - 30);
-
     // Total conversations
     const totalConversations = chatbotIds.length > 0
         ? await prisma.conversation.count({
             where: {
                 chatbotId: { in: chatbotIds },
-                createdAt: { gte: startOfPeriod }
+                createdAt: { gte: startDate }
             }
         })
         : 0;
@@ -62,7 +85,7 @@ export default async function AnalyticsPage() {
             where: {
                 conversation: {
                     chatbotId: { in: chatbotIds },
-                    createdAt: { gte: startOfPeriod }
+                    createdAt: { gte: startDate }
                 }
             }
         })
@@ -74,7 +97,7 @@ export default async function AnalyticsPage() {
             by: ['visitorId'],
             where: {
                 chatbotId: { in: chatbotIds },
-                createdAt: { gte: startOfPeriod }
+                createdAt: { gte: startDate }
             }
         })
         : [];
@@ -86,7 +109,29 @@ export default async function AnalyticsPage() {
             where: {
                 chatbotId: { in: chatbotIds },
                 status: 'RESOLVED',
-                createdAt: { gte: startOfPeriod }
+                createdAt: { gte: startDate }
+            }
+        })
+        : 0;
+
+    // Escalated conversations
+    const escalatedConversations = chatbotIds.length > 0
+        ? await prisma.conversation.count({
+            where: {
+                chatbotId: { in: chatbotIds },
+                status: 'ESCALATED',
+                createdAt: { gte: startDate }
+            }
+        })
+        : 0;
+
+    // Leads captured
+    const leadsCaptured = chatbotIds.length > 0
+        ? await prisma.conversation.count({
+            where: {
+                chatbotId: { in: chatbotIds },
+                leadEmail: { not: null },
+                createdAt: { gte: startDate }
             }
         })
         : 0;
@@ -95,16 +140,20 @@ export default async function AnalyticsPage() {
         ? Math.round((resolvedConversations / totalConversations) * 100)
         : 0;
 
+    const escalationRate = totalConversations > 0
+        ? Math.round((escalatedConversations / totalConversations) * 100)
+        : 0;
+
     // Get chatbot performance data
     const chatbotStats = await Promise.all(chatbots.map(async (bot) => {
         const conversations = await prisma.conversation.count({
-            where: { chatbotId: bot.id, createdAt: { gte: startOfPeriod } }
+            where: { chatbotId: bot.id, createdAt: { gte: startDate } }
         });
         const messages = await prisma.message.count({
-            where: { conversation: { chatbotId: bot.id, createdAt: { gte: startOfPeriod } } }
+            where: { conversation: { chatbotId: bot.id, createdAt: { gte: startDate } } }
         });
         const resolved = await prisma.conversation.count({
-            where: { chatbotId: bot.id, status: 'RESOLVED', createdAt: { gte: startOfPeriod } }
+            where: { chatbotId: bot.id, status: 'RESOLVED', createdAt: { gte: startDate } }
         });
         const rate = conversations > 0 ? Math.round((resolved / conversations) * 100) : 0;
 
@@ -114,14 +163,14 @@ export default async function AnalyticsPage() {
             conversations,
             messages,
             resolutionRate: rate,
-            avgResponseTime: "1.2s", // Would require latency tracking
-            trend: "up" as const,
+            avgResponseTime: "1.2s",
         };
     }));
 
-    // Generate daily data for the last 7 days
+    // Generate daily data for the chart
+    const days = period === '7d' ? 7 : period === '90d' ? 14 : 7;
     const dailyData = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = days - 1; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         const startOfDay = new Date(date);
@@ -149,9 +198,9 @@ export default async function AnalyticsPage() {
             })
             : 0;
 
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         dailyData.push({
-            date: days[date.getDay()],
+            date: dayNames[date.getDay()],
             conversations: dayConversations,
             messages: dayMessages
         });
@@ -159,52 +208,79 @@ export default async function AnalyticsPage() {
 
     const maxConversations = Math.max(1, ...dailyData.map(d => d.conversations));
 
+    // Get top questions (most frequent user messages)
+    let topQuestions: Array<{ content: string; count: bigint }> = [];
+    if (chatbotIds.length > 0) {
+        try {
+            topQuestions = await prisma.$queryRaw<Array<{ content: string; count: bigint }>>`
+                SELECT m.content, COUNT(*) as count
+                FROM "Message" m
+                JOIN "Conversation" c ON m."conversationId" = c.id
+                WHERE c."chatbotId" = ANY(${chatbotIds})
+                AND c."createdAt" >= ${startDate}
+                AND m.role = 'USER'
+                AND LENGTH(m.content) > 10
+                AND LENGTH(m.content) < 200
+                GROUP BY m.content
+                ORDER BY count DESC
+                LIMIT 8
+            `;
+        } catch {
+            // Query might fail on empty database
+            topQuestions = [];
+        }
+    }
+
+    const periodLabel = period === '7d' ? 'Last 7 days' : period === '90d' ? 'Last 90 days' : 'Last 30 days';
+
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-                    <p className="text-gray-500 mt-1">Track your chatbot performance (Last 30 days)</p>
+                    <p className="text-gray-500 mt-1">Track your chatbot performance</p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-sm">Last 30 days</Badge>
-                    <Button variant="outline" size="icon">
-                        <Filter className="w-4 h-4" />
-                    </Button>
-                </div>
+                <form method="GET">
+                    <Select name="period" defaultValue={period}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select period" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="7d">Last 7 days</SelectItem>
+                            <SelectItem value="30d">Last 30 days</SelectItem>
+                            <SelectItem value="90d">Last 90 days</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </form>
             </div>
 
-            {/* Overview Stats */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* Overview Stats - 6 columns */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-gray-600">
-                            Total Conversations
+                            Conversations
                         </CardTitle>
-                        <MessageSquare className="h-4 w-4 text-gray-400" />
+                        <MessageSquare className="h-4 w-4 text-blue-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{totalConversations.toLocaleString()}</div>
-                        <p className="text-xs text-gray-500 mt-1">
-                            in the last 30 days
-                        </p>
+                        <p className="text-xs text-gray-500 mt-1">{periodLabel}</p>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-gray-600">
-                            Messages Processed
+                            Messages
                         </CardTitle>
-                        <MessageSquare className="h-4 w-4 text-gray-400" />
+                        <MessageSquare className="h-4 w-4 text-indigo-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{totalMessages.toLocaleString()}</div>
-                        <p className="text-xs text-gray-500 mt-1">
-                            across all chatbots
-                        </p>
+                        <p className="text-xs text-gray-500 mt-1">across all chatbots</p>
                     </CardContent>
                 </Card>
 
@@ -213,13 +289,11 @@ export default async function AnalyticsPage() {
                         <CardTitle className="text-sm font-medium text-gray-600">
                             Unique Visitors
                         </CardTitle>
-                        <Users className="h-4 w-4 text-gray-400" />
+                        <Users className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{uniqueVisitors.toLocaleString()}</div>
-                        <p className="text-xs text-gray-500 mt-1">
-                            unique sessions
-                        </p>
+                        <p className="text-xs text-gray-500 mt-1">unique sessions</p>
                     </CardContent>
                 </Card>
 
@@ -228,13 +302,37 @@ export default async function AnalyticsPage() {
                         <CardTitle className="text-sm font-medium text-gray-600">
                             Resolution Rate
                         </CardTitle>
-                        <ThumbsUp className="h-4 w-4 text-gray-400" />
+                        <ThumbsUp className="h-4 w-4 text-emerald-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{resolutionRate}%</div>
-                        <p className="text-xs text-gray-500 mt-1">
-                            {resolvedConversations} resolved of {totalConversations}
-                        </p>
+                        <p className="text-xs text-gray-500 mt-1">{resolvedConversations} resolved</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-gray-600">
+                            Escalation Rate
+                        </CardTitle>
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{escalationRate}%</div>
+                        <p className="text-xs text-gray-500 mt-1">{escalatedConversations} escalated</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-gray-600">
+                            Leads Captured
+                        </CardTitle>
+                        <UserPlus className="h-4 w-4 text-purple-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{leadsCaptured}</div>
+                        <p className="text-xs text-gray-500 mt-1">new leads</p>
                     </CardContent>
                 </Card>
             </div>
@@ -254,7 +352,7 @@ export default async function AnalyticsPage() {
                                     <div className="w-full flex flex-col items-center gap-1">
                                         <span className="text-xs text-gray-500">{day.conversations}</span>
                                         <div
-                                            className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
+                                            className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t transition-all hover:from-blue-700 hover:to-blue-500"
                                             style={{ height: `${Math.max(4, (day.conversations / maxConversations) * 140)}px` }}
                                         />
                                     </div>
@@ -272,7 +370,7 @@ export default async function AnalyticsPage() {
                         <CardDescription>How each chatbot is performing</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-4">
+                        <div className="space-y-4 max-h-[280px] overflow-y-auto">
                             {chatbotStats.length === 0 ? (
                                 <div className="text-center py-8">
                                     <Bot className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -280,10 +378,10 @@ export default async function AnalyticsPage() {
                                 </div>
                             ) : (
                                 chatbotStats.map((bot) => (
-                                    <div key={bot.id} className="p-4 rounded-lg border">
+                                    <div key={bot.id} className="p-4 rounded-lg border hover:border-blue-200 transition-colors">
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
+                                                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
                                                     <Bot className="w-5 h-5 text-white" />
                                                 </div>
                                                 <div>
@@ -320,18 +418,34 @@ export default async function AnalyticsPage() {
                 </Card>
             </div>
 
-            {/* Empty state for top questions until we have message analysis */}
+            {/* Top Questions */}
             <Card>
                 <CardHeader>
                     <CardTitle>Top Questions</CardTitle>
                     <CardDescription>Most frequently asked questions across all chatbots</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center py-8">
-                        <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500">Question analysis coming soon</p>
-                        <p className="text-sm text-gray-400 mt-1">We're working on analyzing your conversation data</p>
-                    </div>
+                    {topQuestions.length === 0 ? (
+                        <div className="text-center py-8">
+                            <HelpCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No questions found yet</p>
+                            <p className="text-sm text-gray-400 mt-1">Questions will appear here once visitors start chatting</p>
+                        </div>
+                    ) : (
+                        <div className="grid gap-3 md:grid-cols-2">
+                            {topQuestions.map((q, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors">
+                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">
+                                        {i + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-gray-900 truncate">{q.content}</p>
+                                        <p className="text-xs text-gray-500 mt-1">{Number(q.count)} times asked</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
