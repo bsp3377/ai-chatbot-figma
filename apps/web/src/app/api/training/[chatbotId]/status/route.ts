@@ -51,7 +51,7 @@ export async function GET(
         });
 
         const totalChunks = dataSources.reduce((sum, ds) => sum + ds.dataSource._count.documentChunks, 0);
-        const processedSources = dataSources.filter(ds => ds.dataSource.status === 'PROCESSED').length;
+        const processedSources = dataSources.filter(ds => ds.dataSource.status === 'READY').length;
         const totalSources = dataSources.length;
 
         // Calculate progress percentage
