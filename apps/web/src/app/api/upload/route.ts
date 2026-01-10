@@ -3,9 +3,16 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { chunkText, generateEmbeddings, vectorStore } from '@chatbot-ai/ai';
 import { revalidatePath } from 'next/cache';
-import pdf from 'pdf-parse';
 
 export const dynamic = 'force-dynamic';
+
+// Helper function to extract text from PDF using pdf-parse
+async function extractTextFromPDF(buffer: Buffer): Promise<{ text: string; numpages: number }> {
+    // Dynamic import for pdf-parse (CommonJS module)
+    const pdfParse = (await import('pdf-parse')).default;
+    const data = await pdfParse(buffer);
+    return { text: data.text, numpages: data.numpages };
+}
 
 export async function POST(req: NextRequest) {
     try {
@@ -62,7 +69,7 @@ export async function POST(req: NextRequest) {
             const buffer = Buffer.from(arrayBuffer);
 
             // Extract text from PDF
-            const pdfData = await pdf(buffer);
+            const pdfData = await extractTextFromPDF(buffer);
             const textContent = pdfData.text;
 
             if (!textContent || textContent.trim().length === 0) {
