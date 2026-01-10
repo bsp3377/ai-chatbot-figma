@@ -48,7 +48,7 @@ async function triggerWebhooks(
             data: {
                 endpointId: endpoint.id,
                 type: eventType,
-                payload: payload as unknown as Record<string, unknown>,
+                payload: payload as any,
                 status: 'PENDING',
             },
         });
