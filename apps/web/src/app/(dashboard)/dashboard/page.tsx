@@ -4,45 +4,116 @@ import { Bot, BarChart3, MessageSquare, Users, ArrowUpRight, Plus, TrendingUp, C
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-// Stats data
-const stats = [
-    {
-        name: "Active Chatbots",
-        value: "2",
-        change: "+1",
-        changeType: "positive" as const,
-        icon: Bot,
-    },
-    {
-        name: "Chats This Month",
-        value: "342",
-        change: "+12%",
-        changeType: "positive" as const,
-        icon: MessageSquare,
-    },
-    {
-        name: "Resolution Rate",
-        value: "94%",
-        change: "+2%",
-        changeType: "positive" as const,
-        icon: CheckCircle2,
-    },
-    {
-        name: "Unique Visitors",
-        value: "287",
-        change: "+8%",
-        changeType: "positive" as const,
-        icon: Users,
-    },
-];
-
 export default async function DashboardPage() {
-    const chatbots = await db.chatbot.findMany({ where: { workspaceId: "ws_1" } });
-    const conversations = await db.conversation.findMany({ take: 5 });
+    const session = await auth();
+
+    // Get user's workspace
+    const user = session?.user?.email ? await prisma.user.findUnique({
+        where: { email: session.user.email },
+        include: { workspace: true }
+    }) : null;
+
+    const workspaceId = user?.workspaceId;
+
+    // Fetch real data
+    const chatbots = workspaceId
+        ? await prisma.chatbot.findMany({
+            where: { workspaceId },
+            orderBy: { updatedAt: 'desc' }
+        })
+        : [];
+
+    // Get all chatbot IDs for this workspace
+    const chatbotIds = chatbots.map(c => c.id);
+
+    // Fetch conversation count this month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const conversationsThisMonth = chatbotIds.length > 0
+        ? await prisma.conversation.count({
+            where: {
+                chatbotId: { in: chatbotIds },
+                createdAt: { gte: startOfMonth }
+            }
+        })
+        : 0;
+
+    // Fetch unique visitors this month
+    const uniqueVisitors = chatbotIds.length > 0
+        ? await prisma.conversation.groupBy({
+            by: ['visitorId'],
+            where: {
+                chatbotId: { in: chatbotIds },
+                createdAt: { gte: startOfMonth }
+            }
+        }).then(result => result.length)
+        : 0;
+
+    // Fetch resolved conversations for resolution rate
+    const resolvedConversations = chatbotIds.length > 0
+        ? await prisma.conversation.count({
+            where: {
+                chatbotId: { in: chatbotIds },
+                status: 'RESOLVED',
+                createdAt: { gte: startOfMonth }
+            }
+        })
+        : 0;
+
+    const resolutionRate = conversationsThisMonth > 0
+        ? Math.round((resolvedConversations / conversationsThisMonth) * 100)
+        : 0;
+
+    // Recent conversations
+    const conversations = chatbotIds.length > 0
+        ? await prisma.conversation.findMany({
+            where: { chatbotId: { in: chatbotIds } },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: {
+                _count: { select: { messages: true } }
+            }
+        })
+        : [];
+
+    // Build stats from real data
+    const stats = [
+        {
+            name: "Active Chatbots",
+            value: chatbots.filter(c => c.status === 'ACTIVE').length.toString(),
+            change: "+0",
+            changeType: "positive" as const,
+            icon: Bot,
+        },
+        {
+            name: "Chats This Month",
+            value: conversationsThisMonth.toString(),
+            change: "+0%",
+            changeType: "positive" as const,
+            icon: MessageSquare,
+        },
+        {
+            name: "Resolution Rate",
+            value: `${resolutionRate}%`,
+            change: "+0%",
+            changeType: "positive" as const,
+            icon: CheckCircle2,
+        },
+        {
+            name: "Unique Visitors",
+            value: uniqueVisitors.toString(),
+            change: "+0%",
+            changeType: "positive" as const,
+            icon: Users,
+        },
+    ];
 
     return (
         <div className="space-y-8">
@@ -102,7 +173,7 @@ export default async function DashboardPage() {
                             {chatbots.slice(0, 3).map((bot: any) => (
                                 <Link
                                     key={bot.id}
-                                    href={`/ chatbots / ${bot.id} `}
+                                    href={`/chatbots/${bot.id}`}
                                     className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
                                 >
                                     <div className="flex items-center gap-3">
@@ -115,7 +186,7 @@ export default async function DashboardPage() {
                                         <div>
                                             <p className="font-medium text-gray-900">{bot.name}</p>
                                             <p className="text-sm text-gray-500">
-                                                Last trained {bot.lastTrainedAt ? "2h ago" : "Never"}
+                                                {bot.lastTrainedAt ? `Last trained ${formatRelativeTime(bot.lastTrainedAt)}` : "Never trained"}
                                             </p>
                                         </div>
                                     </div>
@@ -168,10 +239,10 @@ export default async function DashboardPage() {
                                         </div>
                                         <div>
                                             <p className="font-medium text-gray-900">
-                                                {conv.leadName || `Visitor ${conv.visitorId.slice(-6)} `}
+                                                {conv.leadName || `Visitor ${conv.visitorId.slice(-6)}`}
                                             </p>
                                             <p className="text-sm text-gray-500">
-                                                {conv.messageCount || 0} messages · {formatRelativeTime(conv.startedAt)}
+                                                {conv._count?.messages || 0} messages · {formatRelativeTime(conv.startedAt)}
                                             </p>
                                         </div>
                                     </div>
@@ -213,9 +284,13 @@ export default async function DashboardPage() {
                             <CheckCircle2 className="w-5 h-5 text-green-600" />
                             <span className="text-sm font-medium text-green-800">Create account</span>
                         </div>
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
-                            <CheckCircle2 className="w-5 h-5 text-green-600" />
-                            <span className="text-sm font-medium text-green-800">Create first chatbot</span>
+                        <div className={`flex items-center gap-3 p-3 rounded-lg ${chatbots.length > 0 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'} border`}>
+                            {chatbots.length > 0 ? (
+                                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                            ) : (
+                                <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
+                            )}
+                            <span className={`text-sm font-medium ${chatbots.length > 0 ? 'text-green-800' : 'text-gray-600'}`}>Create first chatbot</span>
                         </div>
                         <Link
                             href="/chatbots"
@@ -240,7 +315,7 @@ export default async function DashboardPage() {
 
 function formatRelativeTime(date: Date): string {
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    const diffMs = now.getTime() - new Date(date).getTime();
     const diffMinutes = Math.floor(diffMs / 60000);
 
     if (diffMinutes < 60) return `${diffMinutes}m ago`;
