@@ -3,15 +3,26 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { chunkText, generateEmbeddings, vectorStore } from '@chatbot-ai/ai';
 import { revalidatePath } from 'next/cache';
+import * as pdfjsLib from 'pdfjs-dist';
 
 export const dynamic = 'force-dynamic';
 
-// Helper function to extract text from PDF using pdf-parse
+// Helper function to extract text from PDF
 async function extractTextFromPDF(buffer: Buffer): Promise<{ text: string; numpages: number }> {
-    // Dynamic import for pdf-parse (CommonJS module)
-    const pdfParse = (await import('pdf-parse')).default;
-    const data = await pdfParse(buffer);
-    return { text: data.text, numpages: data.numpages };
+    const uint8Array = new Uint8Array(buffer);
+    const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
+
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+            .map((item: any) => item.str || '')
+            .join(' ');
+        fullText += pageText + '\n';
+    }
+
+    return { text: fullText, numpages: pdf.numPages };
 }
 
 export async function POST(req: NextRequest) {
@@ -62,9 +73,8 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        // Process in background (but await for simplicity in V1)
+        // Process PDF
         try {
-            // Read file as buffer
             const arrayBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
 
