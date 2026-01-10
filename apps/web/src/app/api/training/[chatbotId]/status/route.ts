@@ -62,32 +62,30 @@ export async function GET(
             progress = totalSources > 0
                 ? Math.round((processedSources / totalSources) * 100)
                 : 50;
-        } else if (chatbot.status === 'DRAFT') {
-            progress = 0;
-        }
 
-        return NextResponse.json({
-            chatbotId: chatbot.id,
-            name: chatbot.name,
-            status: chatbot.status,
-            lastTrainedAt: chatbot.lastTrainedAt,
-            progress,
-            dataSources: dataSources.map(ds => ({
-                id: ds.dataSource.id,
-                name: ds.dataSource.name,
-                type: ds.dataSource.type,
-                status: ds.dataSource.status,
-                chunksCount: ds.dataSource._count.documentChunks,
-            })),
-            totalChunks,
-            totalSources,
-            processedSources,
-        });
-    } catch (error) {
-        console.error('Training status error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
-        );
+
+            return NextResponse.json({
+                chatbotId: chatbot.id,
+                name: chatbot.name,
+                status: chatbot.status,
+                lastTrainedAt: chatbot.lastTrainedAt,
+                progress,
+                dataSources: dataSources.map(ds => ({
+                    id: ds.dataSource.id,
+                    name: ds.dataSource.name,
+                    type: ds.dataSource.type,
+                    status: ds.dataSource.status,
+                    chunksCount: ds.dataSource._count.documentChunks,
+                })),
+                totalChunks,
+                totalSources,
+                processedSources,
+            });
+        } catch (error) {
+            console.error('Training status error:', error);
+            return NextResponse.json(
+                { error: 'Internal server error' },
+                { status: 500 }
+            );
+        }
     }
-}
