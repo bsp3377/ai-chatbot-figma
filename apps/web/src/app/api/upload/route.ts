@@ -3,12 +3,14 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { chunkText, generateEmbeddings, vectorStore } from '@chatbot-ai/ai';
 import { revalidatePath } from 'next/cache';
-import * as pdfjsLib from 'pdfjs-dist';
 
 export const dynamic = 'force-dynamic';
 
-// Helper function to extract text from PDF
+// Helper function to extract text from PDF using pdfjs-dist legacy build
 async function extractTextFromPDF(buffer: Buffer): Promise<{ text: string; numpages: number }> {
+    // Use legacy build for Node.js environment
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
     const uint8Array = new Uint8Array(buffer);
     const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
 
