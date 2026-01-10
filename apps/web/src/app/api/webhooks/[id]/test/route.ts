@@ -54,7 +54,7 @@ export async function POST(
             data: {
                 endpointId: webhook.id,
                 type: 'TRAINING_COMPLETE',
-                payload: testPayload as unknown as Record<string, unknown>,
+                payload: testPayload as any,
                 status: result.success ? 'SENT' : 'FAILED',
                 attempts: 1,
                 lastError: result.error || null,
