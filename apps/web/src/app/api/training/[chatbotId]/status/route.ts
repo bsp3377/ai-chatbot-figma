@@ -43,14 +43,14 @@ export async function GET(
                         type: true,
                         status: true,
                         _count: {
-                            select: { chunks: true }
+                            select: { documentChunks: true }
                         }
                     }
                 }
             }
         });
 
-        const totalChunks = dataSources.reduce((sum, ds) => sum + ds.dataSource._count.chunks, 0);
+        const totalChunks = dataSources.reduce((sum, ds) => sum + ds.dataSource._count.documentChunks, 0);
         const processedSources = dataSources.filter(ds => ds.dataSource.status === 'PROCESSED').length;
         const totalSources = dataSources.length;
 
@@ -77,7 +77,7 @@ export async function GET(
                 name: ds.dataSource.name,
                 type: ds.dataSource.type,
                 status: ds.dataSource.status,
-                chunksCount: ds.dataSource._count.chunks,
+                chunksCount: ds.dataSource._count.documentChunks,
             })),
             totalChunks,
             totalSources,
