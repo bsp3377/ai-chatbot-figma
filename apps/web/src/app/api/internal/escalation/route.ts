@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
             visitorEmail: visitorEmail || null,
             visitorName: visitorName || null,
             reason: reason || 'Visitor requested human support',
-            messages: conversation.messages.map((m) => ({
+            messages: conversation.messages.map((m: { role: string; content: string; createdAt: Date }) => ({
                 role: m.role,
                 content: m.content,
                 createdAt: m.createdAt.toISOString(),

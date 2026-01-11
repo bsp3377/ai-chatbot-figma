@@ -29,7 +29,16 @@ export async function getWebhooks() {
         },
     });
 
-    return webhooks.map((webhook) => ({
+    return webhooks.map((webhook: {
+        id: string;
+        url: string;
+        events: string[];
+        description: string | null;
+        active: boolean;
+        secret: string;
+        createdAt: Date;
+        _count: { webhookEvents: number };
+    }) => ({
         id: webhook.id,
         url: webhook.url,
         events: webhook.events,

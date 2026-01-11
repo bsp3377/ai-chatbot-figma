@@ -50,8 +50,8 @@ export async function GET(
             }
         });
 
-        const totalChunks = dataSources.reduce((sum, ds) => sum + ds.dataSource._count.documentChunks, 0);
-        const processedSources = dataSources.filter(ds => ds.dataSource.status === 'READY').length;
+        const totalChunks = dataSources.reduce((sum: number, ds: { dataSource: { _count: { documentChunks: number } } }) => sum + ds.dataSource._count.documentChunks, 0);
+        const processedSources = dataSources.filter((ds: { dataSource: { status: string } }) => ds.dataSource.status === 'READY').length;
         const totalSources = dataSources.length;
 
         // Calculate progress percentage
@@ -71,7 +71,7 @@ export async function GET(
             status: chatbot.status,
             lastTrainedAt: chatbot.lastTrainedAt,
             progress,
-            dataSources: dataSources.map(ds => ({
+            dataSources: dataSources.map((ds: { dataSource: { id: string; name: string; type: string; status: string; _count: { documentChunks: number } } }) => ({
                 id: ds.dataSource.id,
                 name: ds.dataSource.name,
                 type: ds.dataSource.type,

@@ -67,7 +67,7 @@ export default async function AnalyticsPage({
         })
         : [];
 
-    const chatbotIds = chatbots.map(c => c.id);
+    const chatbotIds = chatbots.map((c: { id: string }) => c.id);
 
     // Total conversations
     const totalConversations = chatbotIds.length > 0
@@ -145,7 +145,7 @@ export default async function AnalyticsPage({
         : 0;
 
     // Get chatbot performance data
-    const chatbotStats = await Promise.all(chatbots.map(async (bot) => {
+    const chatbotStats = await Promise.all(chatbots.map(async (bot: { id: string; name: string }) => {
         const conversations = await prisma.conversation.count({
             where: { chatbotId: bot.id, createdAt: { gte: startDate } }
         });
@@ -206,7 +206,7 @@ export default async function AnalyticsPage({
         });
     }
 
-    const maxConversations = Math.max(1, ...dailyData.map(d => d.conversations));
+    const maxConversations = Math.max(1, ...dailyData.map((d: { conversations: number }) => d.conversations));
 
     // Get top questions (most frequent user messages)
     let topQuestions: Array<{ content: string; count: bigint }> = [];
@@ -377,7 +377,7 @@ export default async function AnalyticsPage({
                                     <p className="text-gray-500">No chatbots found</p>
                                 </div>
                             ) : (
-                                chatbotStats.map((bot) => (
+                                chatbotStats.map((bot: { id: string; name: string; conversations: number; messages: number; resolutionRate: number; avgResponseTime: string }) => (
                                     <div key={bot.id} className="p-4 rounded-lg border hover:border-blue-200 transition-colors">
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-3">

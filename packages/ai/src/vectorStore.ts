@@ -1,4 +1,4 @@
-import { prisma, DocumentChunk } from '@chatbot-ai/database';
+import { prisma } from '@chatbot-ai/database';
 
 interface VectorEntry {
     id: string;
@@ -6,6 +6,15 @@ interface VectorEntry {
     content: string;
     metadata: any;
     dataSourceId: string;
+}
+
+interface DocumentChunkResult {
+    id: string;
+    content: string;
+    dataSourceId: string;
+    metadata: any;
+    tokens: number;
+    score: number;
 }
 
 export const vectorStore = {
@@ -44,7 +53,7 @@ export const vectorStore = {
             topK?: number;
             filter?: { dataSourceId?: string };
         }
-    ): Promise<Array<DocumentChunk & { score: number }>> {
+    ): Promise<Array<DocumentChunkResult>> {
         const { topK = 5, filter } = options;
         const vectorString = `[${queryVector.join(',')}]`;
 

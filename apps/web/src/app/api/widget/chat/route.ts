@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
             select: { dataSourceId: true },
         });
 
-        const dataSourceIds = chatbotDataSources.map((ds) => ds.dataSourceId);
+        const dataSourceIds = chatbotDataSources.map((ds: { dataSourceId: string }) => ds.dataSourceId);
 
         // RAG: Get context from vector store
         let context = '';
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
                 // Generate embedding for query
                 const queryEmbedding = await generateEmbedding(userQuery);
                 const vectorString = `'[${queryEmbedding.join(',')}]'`;
-                const idsList = dataSourceIds.map((id) => `'${id}'`).join(',');
+                const idsList = dataSourceIds.map((id: string) => `'${id}'`).join(',');
 
                 const similarChunks = await db.$queryRawUnsafe(`
                     SELECT content, 1 - (embedding <=> ${vectorString}::vector) as score
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
                 `) as Array<{ content: string; score: number }>;
 
                 context = similarChunks
-                    .map((chunk) => chunk.content)
+                    .map((chunk: { content: string; score: number }) => chunk.content)
                     .join('\n\n');
             } catch (error) {
                 console.error('RAG search error:', error);

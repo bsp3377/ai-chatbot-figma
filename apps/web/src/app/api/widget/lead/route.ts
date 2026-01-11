@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
                     payload: payload as any,
                     status: 'PENDING',
                 },
-            }).then(async (event) => {
+            }).then(async (event: { id: string }) => {
                 const result = await deliverWebhook({
                     url: endpoint.url,
                     secret: endpoint.secret,

@@ -29,7 +29,7 @@ export default async function DashboardPage() {
         : [];
 
     // Get all chatbot IDs for this workspace
-    const chatbotIds = chatbots.map(c => c.id);
+    const chatbotIds = chatbots.map((c: { id: string }) => c.id);
 
     // Fetch conversation count this month
     const startOfMonth = new Date();
@@ -53,7 +53,7 @@ export default async function DashboardPage() {
                 chatbotId: { in: chatbotIds },
                 createdAt: { gte: startOfMonth }
             }
-        }).then(result => result.length)
+        }).then((result: unknown[]) => result.length)
         : 0;
 
     // Fetch resolved conversations for resolution rate
@@ -87,7 +87,7 @@ export default async function DashboardPage() {
     const stats = [
         {
             name: "Active Chatbots",
-            value: chatbots.filter(c => c.status === 'ACTIVE').length.toString(),
+            value: chatbots.filter((c: { status: string }) => c.status === 'ACTIVE').length.toString(),
             change: "+0",
             changeType: "positive" as const,
             icon: Bot,

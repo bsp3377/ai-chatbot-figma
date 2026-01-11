@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
             visitorEmail: email || null,
             visitorName: name || null,
             reason: reason || 'Visitor requested human support',
-            messages: conversation.messages.map((m) => ({
+            messages: conversation.messages.map((m: { role: string; content: string; createdAt: Date }) => ({
                 role: m.role,
                 content: m.content,
                 createdAt: m.createdAt.toISOString(),
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
                     payload: payload as any,
                     status: 'PENDING',
                 },
-            }).then(async (event) => {
+            }).then(async (event: { id: string }) => {
                 const result = await deliverWebhook({
                     url: endpoint.url,
                     secret: endpoint.secret,
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
                 visitorEmail: email,
                 visitorName: name,
                 conversationId: conversation.id,
-                messages: conversation.messages.map((m) => ({
+                messages: conversation.messages.map((m: { role: string; content: string; createdAt: Date }) => ({
                     role: m.role,
                     content: m.content,
                     createdAt: m.createdAt.toISOString(),

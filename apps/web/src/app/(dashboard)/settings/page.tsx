@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
     User,
     Building2,
@@ -26,15 +27,17 @@ import { Badge } from "@/components/ui/badge";
 import { WebhookSettings } from "@/components/dashboard/webhook-settings";
 
 export default function SettingsPage() {
+    const { data: session } = useSession();
+
     const [profile, setProfile] = useState({
-        name: "Demo User",
-        email: "demo@chatbotai.com",
+        name: "",
+        email: "",
         avatar: "",
     });
 
     const [workspace, setWorkspace] = useState({
-        name: "Demo Workspace",
-        slug: "demo",
+        name: "",
+        slug: "",
     });
 
     const [notifications, setNotifications] = useState({
@@ -44,11 +47,33 @@ export default function SettingsPage() {
         securityAlerts: true,
     });
 
-    // Mock team members
-    const teamMembers = [
-        { id: "1", name: "Demo User", email: "demo@chatbotai.com", role: "Owner", avatar: "" },
-        { id: "2", name: "Jane Smith", email: "jane@example.com", role: "Admin", avatar: "" },
-    ];
+    // Update profile and workspace when session loads
+    useEffect(() => {
+        if (session?.user) {
+            setProfile({
+                name: session.user.name || "",
+                email: session.user.email || "",
+                avatar: "",
+            });
+            if ((session.user as any).workspace) {
+                setWorkspace({
+                    name: (session.user as any).workspace.name || "",
+                    slug: (session.user as any).workspace.slug || "",
+                });
+            }
+        }
+    }, [session]);
+
+    // Get team members - for now we show the current user as owner
+    const teamMembers = session?.user ? [
+        {
+            id: session.user.id,
+            name: session.user.name || "User",
+            email: session.user.email || "",
+            role: (session.user as any).role || "Owner",
+            avatar: ""
+        },
+    ] : [];
 
     return (
         <div className="space-y-6">

@@ -22,7 +22,7 @@ export async function GET() {
         });
 
         // Remove secrets from response (only show last 4 chars)
-        const safeWebhooks = webhooks.map(webhook => ({
+        const safeWebhooks = webhooks.map((webhook: { secret: string; _count: { webhookEvents: number };[key: string]: unknown }) => ({
             ...webhook,
             secret: `***${webhook.secret.slice(-4)}`,
             eventCount: webhook._count.webhookEvents,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const validEvents = events.filter(e => WEBHOOK_EVENT_TYPES.includes(e));
+        const validEvents = events.filter((e: string) => (WEBHOOK_EVENT_TYPES as readonly string[]).includes(e));
         if (validEvents.length === 0) {
             return NextResponse.json(
                 { error: 'No valid event types provided' },

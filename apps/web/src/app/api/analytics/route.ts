@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
             select: { id: true, name: true },
         });
 
-        const chatbotIds = chatbots.map(c => c.id);
+        const chatbotIds = chatbots.map((c: { id: string }) => c.id);
 
         // Skip if no chatbots
         if (chatbotIds.length === 0) {
@@ -171,16 +171,16 @@ export async function GET(request: NextRequest) {
                 escalationRate,
                 leadsCaptured,
             },
-            conversationsByDay: conversationsByDay.map(d => ({
+            conversationsByDay: conversationsByDay.map((d: { date: string; count: bigint }) => ({
                 date: d.date,
                 count: Number(d.count),
             })),
-            conversationsByChatbot: conversationsByChatbot.map(c => ({
+            conversationsByChatbot: conversationsByChatbot.map((c: { chatbotId: string; _count: { id: number } }) => ({
                 chatbotId: c.chatbotId,
-                chatbotName: chatbots.find(b => b.id === c.chatbotId)?.name || 'Unknown',
+                chatbotName: chatbots.find((b: { id: string; name: string }) => b.id === c.chatbotId)?.name || 'Unknown',
                 count: c._count.id,
             })),
-            topQuestions: topQuestions.map(q => ({
+            topQuestions: topQuestions.map((q: { content: string; count: bigint }) => ({
                 question: q.content,
                 count: Number(q.count),
             })),

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, Bell, HelpCircle, ExternalLink, ChevronDown, User, Settings, LogOut } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,6 +19,17 @@ import { MobileNav } from "./mobile-nav";
 
 export function Header() {
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const { data: session } = useSession();
+
+    // Get user info from session
+    const userName = session?.user?.name || "User";
+    const userEmail = session?.user?.email || "";
+    const userInitials = userName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2) || "U";
 
     return (
         <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-white px-4 sm:px-6">
@@ -67,19 +78,19 @@ export function Header() {
                         <Button variant="ghost" className="flex items-center gap-2 px-2">
                             <Avatar className="h-8 w-8">
                                 <AvatarImage src="" />
-                                <AvatarFallback className="bg-blue-100 text-blue-600 text-sm">DU</AvatarFallback>
+                                <AvatarFallback className="bg-blue-100 text-blue-600 text-sm">{userInitials}</AvatarFallback>
                             </Avatar>
                             <div className="hidden sm:block text-left">
-                                <p className="text-sm font-medium text-gray-900">Demo User</p>
-                                <p className="text-xs text-gray-500">demo@chatbotai.com</p>
+                                <p className="text-sm font-medium text-gray-900">{userName}</p>
+                                <p className="text-xs text-gray-500">{userEmail}</p>
                             </div>
                             <ChevronDown className="h-4 w-4 text-gray-400" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                         <div className="px-2 py-1.5 sm:hidden">
-                            <p className="text-sm font-medium text-gray-900">Demo User</p>
-                            <p className="text-xs text-gray-500">demo@chatbotai.com</p>
+                            <p className="text-sm font-medium text-gray-900">{userName}</p>
+                            <p className="text-xs text-gray-500">{userEmail}</p>
                         </div>
                         <DropdownMenuSeparator className="sm:hidden" />
                         <DropdownMenuItem asChild>
